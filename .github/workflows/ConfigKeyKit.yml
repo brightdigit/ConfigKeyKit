@@ -106,7 +106,13 @@ jobs:
       - name: Install coverage.py (silences codecov-cli probe warning)
         if: steps.build.outputs.contains-code-coverage == 'true'
         run: pip3 install --quiet --user coverage 2>/dev/null || true
-      - uses: sersoft-gmbh/swift-coverage-action@v5
+      # brightdigit fork pinned by SHA: under Swift 6.4 the swiftbuild engine
+      # emits an Xcode-like layout (<Name>Tests.so + -test-runner stub, no
+      # .xctest), which upstream sersoft-gmbh/swift-coverage-action@v5 cannot
+      # pair, silently dropping Linux coverage (issue #92). The patch is
+      # Linux-gated; macOS legs stay on upstream @v5. Drop the pin for a tagged
+      # release once the fix is merged upstream.
+      - uses: brightdigit/swift-coverage-action@2f8538f723b99ab2406ac3a0e5b3355a9de4cf6c
         if: steps.build.outputs.contains-code-coverage == 'true'
         id: coverage-files
         with:
