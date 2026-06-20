@@ -1,5 +1,5 @@
 //
-//  ConfigKeySourceTests.swift
+//  SecretRecordingReader.swift
 //  ConfigKeyKit
 //
 //  Created by Leo Dion.
@@ -27,29 +27,36 @@
 //  OTHER DEALINGS IN THE SOFTWARE.
 //
 
-import Testing
-
 @testable import ConfigKeyKit
 
-@Suite("ConfigKeySource Tests")
-internal struct ConfigKeySourceTests {
-  @Test("All cases")
-  internal func allCases() {
-    let sources = ConfigKeySource.allCases
-    #expect(sources.count == 2)
-    #expect(sources.contains(.commandLine))
-    #expect(sources.contains(.environment))
+/// A ``ConfigValueReading`` that records the `isSecret` flag it was passed for
+/// each resolved key, so tests can assert that a key's secrecy is forwarded to
+/// the underlying reader. Backed by a reference type so reads (which are
+/// non-mutating) can capture state.
+internal final class SecretRecordingReader: ConfigValueReading {
+  /// The `isSecret` value most recently observed for each per-source key string.
+  internal private(set) var capturedSecrets: [String: Bool] = [:]
+
+  internal func makeConfigKey(_ string: String) -> String { string }
+
+  internal func string(
+    forKey key: String, isSecret: Bool, fileID _: String, line _: UInt
+  ) -> String? {
+    capturedSecrets[key] = isSecret
+    return nil
   }
 
-  @Test("Priority order is command line before environment")
-  internal func priorityOrder() {
-    #expect(ConfigKeySource.priority == [.commandLine, .environment])
+  internal func int(
+    forKey key: String, isSecret: Bool, fileID _: String, line _: UInt
+  ) -> Int? {
+    capturedSecrets[key] = isSecret
+    return nil
   }
 
-  @Test("Priority covers every case")
-  internal func priorityCoversEveryCase() {
-    #expect(Set(ConfigKeySource.priority) == Set(ConfigKeySource.allCases))
-    // Count guards against a duplicate in `priority`, which `Set` equality hides.
-    #expect(ConfigKeySource.priority.count == ConfigKeySource.allCases.count)
+  internal func double(
+    forKey key: String, isSecret: Bool, fileID _: String, line _: UInt
+  ) -> Double? {
+    capturedSecrets[key] = isSecret
+    return nil
   }
 }

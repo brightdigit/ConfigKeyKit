@@ -78,95 +78,140 @@ extension ConfigValueReading {
   /// ``ConfigKeySource/priority`` (command line, then environment).
   public var sourcePriority: [ConfigKeySource] { ConfigKeySource.priority }
 
-  /// Reads a required string value: CLI → ENV → the key's default.
+  // MARK: - Required values
+
+  /// Reads a required string value, consulting sources in ``sourcePriority``
+  /// order and falling back to the key's default.
   public func read(_ key: ConfigKey<String>) -> String {
     resolvedString(key) ?? key.defaultValue
   }
 
-  /// Reads a required double value: CLI → ENV → the key's default.
+  /// Reads a required integer value, consulting sources in ``sourcePriority``
+  /// order and falling back to the key's default.
+  public func read(_ key: ConfigKey<Int>) -> Int {
+    resolvedInt(key) ?? key.defaultValue
+  }
+
+  /// Reads a required double value, consulting sources in ``sourcePriority``
+  /// order and falling back to the key's default.
   public func read(_ key: ConfigKey<Double>) -> Double {
     resolvedDouble(key) ?? key.defaultValue
   }
 
-  /// Reads a required boolean value.
+  /// Reads a required boolean value, consulting sources in ``sourcePriority``
+  /// order and falling back to the key's default.
   ///
-  /// - CLI: flag presence indicates `true` (e.g. `--verbose`).
-  /// - ENV: accepts `true` / `1` / `yes` (case-insensitive); empty is absent.
-  /// - Otherwise the key's default.
+  /// - Command line: a present key indicates `true` (flag presence, e.g.
+  ///   `--verbose`).
+  /// - Other sources: `true` / `1` / `yes` (case-insensitive) are truthy; an
+  ///   empty value is treated as absent and the next source is consulted.
   public func read(_ key: ConfigKey<Bool>) -> Bool {
-    if let cli = key.key(for: .commandLine),
-      string(forKey: makeConfigKey(cli), isSecret: false, fileID: #fileID, line: #line) != nil
-    {
-      return true
-    }
-    if let env = key.key(for: .environment),
-      let value = string(
-        forKey: makeConfigKey(env), isSecret: false, fileID: #fileID, line: #line
-      )
-    {
-      let normalized = value.lowercased().trimmingCharacters(in: .whitespaces)
-      return normalized == "true" || normalized == "1" || normalized == "yes"
-    }
-    return key.defaultValue
+    resolvedBool(key) ?? key.defaultValue
   }
 
-  /// Reads an optional string value: CLI → ENV → `nil`.
+  // MARK: - Optional values
+
+  /// Reads an optional string value, or `nil` if no source provides one.
   public func read(_ key: OptionalConfigKey<String>) -> String? {
     resolvedString(key)
   }
 
-  /// Reads an optional integer value: CLI → ENV → `nil`.
+  /// Reads an optional integer value, or `nil` if no source provides one.
   public func read(_ key: OptionalConfigKey<Int>) -> Int? {
     resolvedInt(key)
   }
 
-  /// Reads an optional double value: CLI → ENV → `nil`.
+  /// Reads an optional double value, or `nil` if no source provides one.
   public func read(_ key: OptionalConfigKey<Double>) -> Double? {
     resolvedDouble(key)
   }
 
-  /// Reads an optional ISO8601 date value: CLI → ENV → `nil`.
-  public func read(_ key: OptionalConfigKey<Date>) -> Date? {
-    guard let value = resolvedString(key) else {
-      return nil
+  // swiftlint:disable discouraged_optional_boolean
+  /// Reads an optional boolean value, or `nil` if no source provides one
+  /// (same truthiness rules as the required boolean overload).
+  public func read(_ key: OptionalConfigKey<Bool>) -> Bool? {
+    resolvedBool(key)
+  }
+  // swiftlint:enable discouraged_optional_boolean
+
+  /// Reads an optional value parsed from a source string with `transform`.
+  ///
+  /// Sources are consulted in ``sourcePriority`` order; the first source whose
+  /// string value parses to a non-`nil` result wins. If a higher-precedence
+  /// source provides a string that fails to parse, resolution falls through to
+  /// the next source.
+  public func read<T>(_ key: OptionalConfigKey<T>, parsing transform: (String) -> T?) -> T? {
+    for source in sourcePriority {
+      guard let keyString = key.key(for: source) else { continue }
+      guard
+        let value = string(
+          forKey: makeConfigKey(keyString), isSecret: key.isSecret, fileID: #fileID, line: #line
+        )
+      else { continue }
+      if let parsed = transform(value) {
+        return parsed
+      }
     }
-    return ISO8601DateFormatter().date(from: value)
+    return nil
+  }
+
+  /// Reads an optional ISO8601 date value, or `nil` if no source provides a
+  /// parseable date.
+  ///
+  /// Equivalent to `read(_:parsing:)` with an ``ISO8601DateFormatter``. For
+  /// other formats, call `read(_:parsing:)` with a custom parser.
+  public func read(_ key: OptionalConfigKey<Date>) -> Date? {
+    read(key, parsing: { ISO8601DateFormatter().date(from: $0) })
   }
 
   // MARK: - Source-precedence resolution
 
-  private func resolvedString(_ key: any ConfigurationKey) -> String? {
+  /// Returns the first non-`nil` value produced by `lookup` across the sources
+  /// in ``sourcePriority`` order, forwarding the key's secrecy to the reader.
+  private func resolved<T>(
+    _ key: any ConfigurationKey,
+    _ lookup: (Key, Bool) -> T?
+  ) -> T? {
     for source in sourcePriority {
       guard let keyString = key.key(for: source) else { continue }
-      if let value = string(
-        forKey: makeConfigKey(keyString), isSecret: false, fileID: #fileID, line: #line
-      ) {
+      if let value = lookup(makeConfigKey(keyString), key.isSecret) {
         return value
       }
     }
     return nil
+  }
+
+  private func resolvedString(_ key: any ConfigurationKey) -> String? {
+    resolved(key) { string(forKey: $0, isSecret: $1, fileID: #fileID, line: #line) }
   }
 
   private func resolvedInt(_ key: any ConfigurationKey) -> Int? {
-    for source in sourcePriority {
-      guard let keyString = key.key(for: source) else { continue }
-      if let value = int(
-        forKey: makeConfigKey(keyString), isSecret: false, fileID: #fileID, line: #line
-      ) {
-        return value
-      }
-    }
-    return nil
+    resolved(key) { int(forKey: $0, isSecret: $1, fileID: #fileID, line: #line) }
   }
 
   private func resolvedDouble(_ key: any ConfigurationKey) -> Double? {
+    resolved(key) { double(forKey: $0, isSecret: $1, fileID: #fileID, line: #line) }
+  }
+
+  // swiftlint:disable:next discouraged_optional_boolean
+  private func resolvedBool(_ key: any ConfigurationKey) -> Bool? {
     for source in sourcePriority {
       guard let keyString = key.key(for: source) else { continue }
-      if let value = double(
-        forKey: makeConfigKey(keyString), isSecret: false, fileID: #fileID, line: #line
-      ) {
-        return value
+      guard
+        let value = string(
+          forKey: makeConfigKey(keyString), isSecret: key.isSecret, fileID: #fileID, line: #line
+        )
+      else { continue }
+      if source == .commandLine {
+        // Flag presence indicates true (e.g. `--verbose`).
+        return true
       }
+      let normalized = value.lowercased().trimmingCharacters(in: .whitespaces)
+      if normalized.isEmpty {
+        // An empty value is treated as absent; consult the next source.
+        continue
+      }
+      return normalized == "true" || normalized == "1" || normalized == "yes"
     }
     return nil
   }

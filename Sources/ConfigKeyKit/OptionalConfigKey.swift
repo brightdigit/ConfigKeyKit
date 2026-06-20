@@ -42,44 +42,52 @@ public struct OptionalConfigKey<Value: Sendable>: ConfigurationKey, Sendable {
   internal let baseKey: String?
   internal let styles: [ConfigKeySource: any NamingStyle]
   internal let explicitKeys: [ConfigKeySource: String]
+  /// Whether the value behind this key is sensitive (e.g. a token or password).
+  public let isSecret: Bool
 
   /// The base key string used for this configuration key
   public var base: String? { baseKey }
 
   /// Initialize with explicit CLI and ENV keys (no default)
-  public init(cli: String? = nil, env: String? = nil) {
+  public init(cli: String? = nil, env: String? = nil, isSecret: Bool = false) {
     self.baseKey = nil
     self.styles = [:]
     var keys: [ConfigKeySource: String] = [:]
     if let cli = cli { keys[.commandLine] = cli }
     if let env = env { keys[.environment] = env }
     self.explicitKeys = keys
+    self.isSecret = isSecret
   }
 
   /// Initialize from a base key string with naming styles (no default)
   /// - Parameters:
   ///   - base: Base key string (e.g., "cloudkit.key_id")
   ///   - styles: Dictionary mapping sources to naming styles
+  ///   - isSecret: Whether the value is sensitive (defaults to false)
   public init(
     base: String,
-    styles: [ConfigKeySource: any NamingStyle]
+    styles: [ConfigKeySource: any NamingStyle],
+    isSecret: Bool = false
   ) {
     self.baseKey = base
     self.styles = styles
     self.explicitKeys = [:]
+    self.isSecret = isSecret
   }
 
   /// Convenience initializer with standard naming conventions (no default)
   /// - Parameters:
   ///   - base: Base key string (e.g., "cloudkit.key_id")
   ///   - envPrefix: Prefix for environment variable (defaults to nil)
-  public init(_ base: String, envPrefix: String? = nil) {
+  ///   - isSecret: Whether the value is sensitive (defaults to false)
+  public init(_ base: String, envPrefix: String? = nil, isSecret: Bool = false) {
     self.baseKey = base
     self.styles = [
       .commandLine: StandardNamingStyle.dotSeparated,
       .environment: StandardNamingStyle.screamingSnakeCase(prefix: envPrefix),
     ]
     self.explicitKeys = [:]
+    self.isSecret = isSecret
   }
 
   /// Returns the resolved key string for the given source.
