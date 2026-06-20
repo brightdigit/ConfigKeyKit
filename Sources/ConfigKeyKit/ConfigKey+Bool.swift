@@ -33,7 +33,13 @@ extension ConfigKey where Value == Bool {
   ///   - cli: Command-line argument name
   ///   - env: Environment variable name
   ///   - defaultVal: Default value (defaults to false)
-  public init(cli: String, env: String, default defaultVal: Bool = false) {
+  ///   - isSecret: Whether the value is sensitive (defaults to false)
+  public init(
+    cli: String,
+    env: String,
+    default defaultVal: Bool = false,
+    isSecret: Bool = false
+  ) {
     self.baseKey = nil
     self.styles = [:]
     var keys: [ConfigKeySource: String] = [:]
@@ -41,6 +47,7 @@ extension ConfigKey where Value == Bool {
     keys[.environment] = env
     self.explicitKeys = keys
     self.defaultValue = defaultVal
+    self.isSecret = isSecret
   }
 
   /// Initialize a boolean configuration key from base string
@@ -48,7 +55,13 @@ extension ConfigKey where Value == Bool {
   ///   - base: Base key string (e.g., "sync.verbose")
   ///   - envPrefix: Prefix for environment variable (defaults to nil)
   ///   - defaultVal: Default value (defaults to false)
-  public init(_ base: String, envPrefix: String? = nil, default defaultVal: Bool = false) {
+  ///   - isSecret: Whether the value is sensitive (defaults to false)
+  public init(
+    _ base: String,
+    envPrefix: String? = nil,
+    default defaultVal: Bool = false,
+    isSecret: Bool = false
+  ) {
     self.baseKey = base
     self.styles = [
       .commandLine: StandardNamingStyle.dotSeparated,
@@ -56,5 +69,6 @@ extension ConfigKey where Value == Bool {
     ]
     self.explicitKeys = [:]
     self.defaultValue = defaultVal
+    self.isSecret = isSecret
   }
 }

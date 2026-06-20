@@ -1,5 +1,5 @@
 //
-//  ConfigKeySource.swift
+//  MockConfigValueReader.swift
 //  ConfigKeyKit
 //
 //  Created by Leo Dion.
@@ -27,21 +27,34 @@
 //  OTHER DEALINGS IN THE SOFTWARE.
 //
 
-/// Source for configuration keys (CLI arguments or environment variables)
-public enum ConfigKeySource: CaseIterable, Sendable {
-  /// Command-line arguments (e.g., --cloudkit-container-id)
-  case commandLine
+@testable import ConfigKeyKit
 
-  /// Environment variables (e.g., CLOUDKIT_CONTAINER_ID)
-  case environment
-}
+/// Dict-backed ``ConfigValueReading`` keyed by the exact per-source key strings
+/// that `ConfigKey` / `OptionalConfigKey` produce, so the shared `read(_:)`
+/// resolution can be exercised without any configuration framework.
+internal struct MockConfigValueReader: ConfigValueReading {
+  internal var strings: [String: String] = [:]
+  internal var ints: [String: Int] = [:]
+  internal var doubles: [String: Double] = [:]
+  internal var sourcePriority: [ConfigKeySource] = ConfigKeySource.priority
 
-extension ConfigKeySource: PrioritizedConfigKeySource {
-  /// Sources in precedence order, highest first: command line overrides
-  /// environment.
-  ///
-  /// This order is part of the public API. `ConfigValueReading` resolution
-  /// consults sources in this sequence, and it is pinned explicitly so it stays
-  /// independent of `case` declaration order.
-  public static let priority: [ConfigKeySource] = [.commandLine, .environment]
+  internal func makeConfigKey(_ string: String) -> String { string }
+
+  internal func string(
+    forKey key: String, isSecret _: Bool, fileID _: String, line _: UInt
+  ) -> String? {
+    strings[key]
+  }
+
+  internal func int(
+    forKey key: String, isSecret _: Bool, fileID _: String, line _: UInt
+  ) -> Int? {
+    ints[key]
+  }
+
+  internal func double(
+    forKey key: String, isSecret _: Bool, fileID _: String, line _: UInt
+  ) -> Double? {
+    doubles[key]
+  }
 }

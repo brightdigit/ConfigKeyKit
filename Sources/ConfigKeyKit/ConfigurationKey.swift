@@ -29,6 +29,12 @@
 
 /// Protocol for configuration keys that support multiple sources
 public protocol ConfigurationKey: Sendable {
+  /// Whether the value behind this key is sensitive (e.g. a token or password).
+  ///
+  /// Readers forward this to the underlying configuration source so secret
+  /// values can be redacted from logs and diagnostics.
+  var isSecret: Bool { get }
+
   /// Get the key string for a specific source
   /// - Parameter source: The configuration source (CLI or ENV)
   /// - Returns: The key string for that source, or nil if the key doesn't support that source

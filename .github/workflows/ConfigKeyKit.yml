@@ -58,7 +58,7 @@ jobs:
         run: |
           if [[ "${{ steps.check.outputs.full }}" == "true" ]]; then
             echo 'ubuntu-os=["noble","jammy"]' >> "$GITHUB_OUTPUT"
-            echo 'ubuntu-swift=[{"version":"6.2"},{"version":"6.3"}]' >> "$GITHUB_OUTPUT"
+            echo 'ubuntu-swift=[{"version":"6.2"},{"version":"6.3"},{"version":"6.4","image":"swiftlang/swift:nightly-6.4.x"}]' >> "$GITHUB_OUTPUT"
             echo 'ubuntu-type=["","wasm","wasm-embedded"]' >> "$GITHUB_OUTPUT"
           else
             echo 'ubuntu-os=["noble"]' >> "$GITHUB_OUTPUT"
@@ -70,7 +70,7 @@ jobs:
     name: Build on Ubuntu
     needs: configure
     runs-on: ubuntu-latest
-    container: swift:${{ matrix.swift.version }}-${{ matrix.os }}
+    container: ${{ matrix.swift.image && format('{0}-{1}', matrix.swift.image, matrix.os) || format('swift:{0}-{1}', matrix.swift.version, matrix.os) }}
     if: ${{ !contains(github.event.head_commit.message, 'ci skip') }}
     strategy:
       fail-fast: false
@@ -78,6 +78,13 @@ jobs:
         os: ${{ fromJSON(needs.configure.outputs.ubuntu-os) }}
         swift: ${{ fromJSON(needs.configure.outputs.ubuntu-swift) }}
         type: ${{ fromJSON(needs.configure.outputs.ubuntu-type) }}
+        # Swift nightly does not publish matching Wasm SDK snapshots, so build
+        # the 6.4 nightly toolchain for the native target only.
+        exclude:
+          - swift: { version: "6.4", image: "swiftlang/swift:nightly-6.4.x" }
+            type: wasm
+          - swift: { version: "6.4", image: "swiftlang/swift:nightly-6.4.x" }
+            type: wasm-embedded
     steps:
       - uses: actions/checkout@v6
       - uses: brightdigit/swift-build@v1
@@ -99,7 +106,13 @@ jobs:
       - name: Install coverage.py (silences codecov-cli probe warning)
         if: steps.build.outputs.contains-code-coverage == 'true'
         run: pip3 install --quiet --user coverage 2>/dev/null || true
-      - uses: sersoft-gmbh/swift-coverage-action@v5
+      # brightdigit fork pinned by SHA: under Swift 6.4 the swiftbuild engine
+      # emits an Xcode-like layout (<Name>Tests.so + -test-runner stub, no
+      # .xctest), which upstream sersoft-gmbh/swift-coverage-action@v5 cannot
+      # pair, silently dropping Linux coverage (issue #92). The patch is
+      # Linux-gated; macOS legs stay on upstream @v5. Drop the pin for a tagged
+      # release once the fix is merged upstream.
+      - uses: brightdigit/swift-coverage-action@2f8538f723b99ab2406ac3a0e5b3355a9de4cf6c
         if: steps.build.outputs.contains-code-coverage == 'true'
         id: coverage-files
         with:

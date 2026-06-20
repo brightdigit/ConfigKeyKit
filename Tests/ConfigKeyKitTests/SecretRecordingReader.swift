@@ -1,5 +1,5 @@
 //
-//  ConfigKeySource.swift
+//  SecretRecordingReader.swift
 //  ConfigKeyKit
 //
 //  Created by Leo Dion.
@@ -27,21 +27,36 @@
 //  OTHER DEALINGS IN THE SOFTWARE.
 //
 
-/// Source for configuration keys (CLI arguments or environment variables)
-public enum ConfigKeySource: CaseIterable, Sendable {
-  /// Command-line arguments (e.g., --cloudkit-container-id)
-  case commandLine
+@testable import ConfigKeyKit
 
-  /// Environment variables (e.g., CLOUDKIT_CONTAINER_ID)
-  case environment
-}
+/// A ``ConfigValueReading`` that records the `isSecret` flag it was passed for
+/// each resolved key, so tests can assert that a key's secrecy is forwarded to
+/// the underlying reader. Backed by a reference type so reads (which are
+/// non-mutating) can capture state.
+internal final class SecretRecordingReader: ConfigValueReading {
+  /// The `isSecret` value most recently observed for each per-source key string.
+  internal private(set) var capturedSecrets: [String: Bool] = [:]
 
-extension ConfigKeySource: PrioritizedConfigKeySource {
-  /// Sources in precedence order, highest first: command line overrides
-  /// environment.
-  ///
-  /// This order is part of the public API. `ConfigValueReading` resolution
-  /// consults sources in this sequence, and it is pinned explicitly so it stays
-  /// independent of `case` declaration order.
-  public static let priority: [ConfigKeySource] = [.commandLine, .environment]
+  internal func makeConfigKey(_ string: String) -> String { string }
+
+  internal func string(
+    forKey key: String, isSecret: Bool, fileID _: String, line _: UInt
+  ) -> String? {
+    capturedSecrets[key] = isSecret
+    return nil
+  }
+
+  internal func int(
+    forKey key: String, isSecret: Bool, fileID _: String, line _: UInt
+  ) -> Int? {
+    capturedSecrets[key] = isSecret
+    return nil
+  }
+
+  internal func double(
+    forKey key: String, isSecret: Bool, fileID _: String, line _: UInt
+  ) -> Double? {
+    capturedSecrets[key] = isSecret
+    return nil
+  }
 }

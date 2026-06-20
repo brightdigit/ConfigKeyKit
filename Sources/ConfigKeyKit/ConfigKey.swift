@@ -47,12 +47,19 @@ public struct ConfigKey<Value: Sendable>: ConfigurationKey, Sendable {
   internal let explicitKeys: [ConfigKeySource: String]
   /// The default value returned when no source provides a value.
   public let defaultValue: Value
+  /// Whether the value behind this key is sensitive (e.g. a token or password).
+  public let isSecret: Bool
 
   /// The base key string used for this configuration key
   public var base: String? { baseKey }
 
   /// Initialize with explicit CLI and ENV keys and required default
-  public init(cli: String? = nil, env: String? = nil, default defaultVal: Value) {
+  public init(
+    cli: String? = nil,
+    env: String? = nil,
+    default defaultVal: Value,
+    isSecret: Bool = false
+  ) {
     self.baseKey = nil
     self.styles = [:]
     var keys: [ConfigKeySource: String] = [:]
@@ -60,6 +67,7 @@ public struct ConfigKey<Value: Sendable>: ConfigurationKey, Sendable {
     if let env = env { keys[.environment] = env }
     self.explicitKeys = keys
     self.defaultValue = defaultVal
+    self.isSecret = isSecret
   }
 
   /// Initialize from a base key string with naming styles and required default
@@ -67,15 +75,18 @@ public struct ConfigKey<Value: Sendable>: ConfigurationKey, Sendable {
   ///   - base: Base key string (e.g., "cloudkit.container_id")
   ///   - styles: Dictionary mapping sources to naming styles
   ///   - defaultVal: Required default value
+  ///   - isSecret: Whether the value is sensitive (defaults to false)
   public init(
     base: String,
     styles: [ConfigKeySource: any NamingStyle],
-    default defaultVal: Value
+    default defaultVal: Value,
+    isSecret: Bool = false
   ) {
     self.baseKey = base
     self.styles = styles
     self.explicitKeys = [:]
     self.defaultValue = defaultVal
+    self.isSecret = isSecret
   }
 
   /// Convenience initializer with standard naming conventions and required default
@@ -83,7 +94,13 @@ public struct ConfigKey<Value: Sendable>: ConfigurationKey, Sendable {
   ///   - base: Base key string (e.g., "cloudkit.container_id")
   ///   - envPrefix: Prefix for environment variable (defaults to nil)
   ///   - defaultVal: Required default value
-  public init(_ base: String, envPrefix: String? = nil, default defaultVal: Value) {
+  ///   - isSecret: Whether the value is sensitive (defaults to false)
+  public init(
+    _ base: String,
+    envPrefix: String? = nil,
+    default defaultVal: Value,
+    isSecret: Bool = false
+  ) {
     self.baseKey = base
     self.styles = [
       .commandLine: StandardNamingStyle.dotSeparated,
@@ -91,6 +108,7 @@ public struct ConfigKey<Value: Sendable>: ConfigurationKey, Sendable {
     ]
     self.explicitKeys = [:]
     self.defaultValue = defaultVal
+    self.isSecret = isSecret
   }
 
   /// Returns the resolved key string for the given source.

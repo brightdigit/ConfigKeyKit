@@ -40,4 +40,16 @@ internal struct ConfigKeySourceTests {
     #expect(sources.contains(.commandLine))
     #expect(sources.contains(.environment))
   }
+
+  @Test("Priority order is command line before environment")
+  internal func priorityOrder() {
+    #expect(ConfigKeySource.priority == [.commandLine, .environment])
+  }
+
+  @Test("Priority covers every case")
+  internal func priorityCoversEveryCase() {
+    #expect(Set(ConfigKeySource.priority) == Set(ConfigKeySource.allCases))
+    // Count guards against a duplicate in `priority`, which `Set` equality hides.
+    #expect(ConfigKeySource.priority.count == ConfigKeySource.allCases.count)
+  }
 }

@@ -1,5 +1,5 @@
 //
-//  ConfigKeySource.swift
+//  PrioritizedConfigKeySource.swift
 //  ConfigKeyKit
 //
 //  Created by Leo Dion.
@@ -27,21 +27,19 @@
 //  OTHER DEALINGS IN THE SOFTWARE.
 //
 
-/// Source for configuration keys (CLI arguments or environment variables)
-public enum ConfigKeySource: CaseIterable, Sendable {
-  /// Command-line arguments (e.g., --cloudkit-container-id)
-  case commandLine
-
-  /// Environment variables (e.g., CLOUDKIT_CONTAINER_ID)
-  case environment
+/// A `CaseIterable` whose cases carry a precedence order, highest first.
+///
+/// Conformers expose ``priority`` as the authoritative ordering for resolution,
+/// decoupling precedence from the order in which `case`s happen to be declared.
+public protocol PrioritizedConfigKeySource: CaseIterable {
+  /// The cases in precedence order, highest priority first.
+  static var priority: [Self] { get }
 }
 
-extension ConfigKeySource: PrioritizedConfigKeySource {
-  /// Sources in precedence order, highest first: command line overrides
-  /// environment.
+extension PrioritizedConfigKeySource {
+  /// Defaults to declaration order (`Array(allCases)`).
   ///
-  /// This order is part of the public API. `ConfigValueReading` resolution
-  /// consults sources in this sequence, and it is pinned explicitly so it stays
-  /// independent of `case` declaration order.
-  public static let priority: [ConfigKeySource] = [.commandLine, .environment]
+  /// Conformers that want precedence to be independent of `case` declaration
+  /// order should override this with an explicit array.
+  public static var priority: [Self] { Array(allCases) }
 }
