@@ -56,6 +56,17 @@ internal struct ConfigValueReadingTests {
     #expect(MockConfigValueReader().read(key) == "default-url")
   }
 
+  @Test("sourcePriority override: ENV wins over CLI when reversed")
+  internal func sourcePriorityOverride() throws {
+    let cli = try #require(key.key(for: .commandLine))
+    let env = try #require(key.key(for: .environment))
+    let reader = MockConfigValueReader(
+      strings: [cli: "from-cli", env: "from-env"],
+      sourcePriority: [.environment, .commandLine]
+    )
+    #expect(reader.read(key) == "from-env")
+  }
+
   @Test("Required bool: CLI flag presence is true")
   internal func boolCLIPresence() throws {
     let boolKey = ConfigKey("verbose", envPrefix: "BRIGHTDIGIT", default: false)

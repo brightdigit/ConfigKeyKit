@@ -1,5 +1,5 @@
 //
-//  ConfigKeySourceTests.swift
+//  PrioritizedConfigKeySource.swift
 //  ConfigKeyKit
 //
 //  Created by Leo Dion.
@@ -27,27 +27,19 @@
 //  OTHER DEALINGS IN THE SOFTWARE.
 //
 
-import Testing
+/// A `CaseIterable` whose cases carry a precedence order, highest first.
+///
+/// Conformers expose ``priority`` as the authoritative ordering for resolution,
+/// decoupling precedence from the order in which `case`s happen to be declared.
+public protocol PrioritizedConfigKeySource: CaseIterable {
+  /// The cases in precedence order, highest priority first.
+  static var priority: [Self] { get }
+}
 
-@testable import ConfigKeyKit
-
-@Suite("ConfigKeySource Tests")
-internal struct ConfigKeySourceTests {
-  @Test("All cases")
-  internal func allCases() {
-    let sources = ConfigKeySource.allCases
-    #expect(sources.count == 2)
-    #expect(sources.contains(.commandLine))
-    #expect(sources.contains(.environment))
-  }
-
-  @Test("Priority order is command line before environment")
-  internal func priorityOrder() {
-    #expect(ConfigKeySource.priority == [.commandLine, .environment])
-  }
-
-  @Test("Priority covers every case")
-  internal func priorityCoversEveryCase() {
-    #expect(Set(ConfigKeySource.priority) == Set(ConfigKeySource.allCases))
-  }
+extension PrioritizedConfigKeySource {
+  /// Defaults to declaration order (`Array(allCases)`).
+  ///
+  /// Conformers that want precedence to be independent of `case` declaration
+  /// order should override this with an explicit array.
+  public static var priority: [Self] { Array(allCases) }
 }

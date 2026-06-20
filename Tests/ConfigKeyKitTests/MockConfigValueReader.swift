@@ -36,6 +36,7 @@ internal struct MockConfigValueReader: ConfigValueReading {
   internal var strings: [String: String] = [:]
   internal var ints: [String: Int] = [:]
   internal var doubles: [String: Double] = [:]
+  internal var sourcePriority: [ConfigKeySource] = ConfigKeySource.priority
 
   internal func makeConfigKey(_ string: String) -> String { string }
 

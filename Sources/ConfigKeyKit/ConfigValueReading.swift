@@ -55,6 +55,11 @@ public protocol ConfigValueReading {
   /// The reader's native key type (e.g. `Configuration.ConfigKey`).
   associatedtype Key
 
+  /// The sources consulted during resolution, in precedence order, highest
+  /// first. Defaults to ``ConfigKeySource/priority``; override to resolve a
+  /// reader with a different precedence (e.g. environment before command line).
+  var sourcePriority: [ConfigKeySource] { get }
+
   /// Builds a native ``Key`` from a resolved per-source key string.
   func makeConfigKey(_ string: String) -> Key
 
@@ -69,6 +74,10 @@ public protocol ConfigValueReading {
 }
 
 extension ConfigValueReading {
+  /// The sources consulted during resolution, defaulting to
+  /// ``ConfigKeySource/priority`` (command line, then environment).
+  public var sourcePriority: [ConfigKeySource] { ConfigKeySource.priority }
+
   /// Reads a required string value: CLI → ENV → the key's default.
   public func read(_ key: ConfigKey<String>) -> String {
     resolvedString(key) ?? key.defaultValue
@@ -127,7 +136,7 @@ extension ConfigValueReading {
   // MARK: - Source-precedence resolution
 
   private func resolvedString(_ key: any ConfigurationKey) -> String? {
-    for source in ConfigKeySource.allCases {
+    for source in sourcePriority {
       guard let keyString = key.key(for: source) else { continue }
       if let value = string(
         forKey: makeConfigKey(keyString), isSecret: false, fileID: #fileID, line: #line
@@ -139,7 +148,7 @@ extension ConfigValueReading {
   }
 
   private func resolvedInt(_ key: any ConfigurationKey) -> Int? {
-    for source in ConfigKeySource.allCases {
+    for source in sourcePriority {
       guard let keyString = key.key(for: source) else { continue }
       if let value = int(
         forKey: makeConfigKey(keyString), isSecret: false, fileID: #fileID, line: #line
@@ -151,7 +160,7 @@ extension ConfigValueReading {
   }
 
   private func resolvedDouble(_ key: any ConfigurationKey) -> Double? {
-    for source in ConfigKeySource.allCases {
+    for source in sourcePriority {
       guard let keyString = key.key(for: source) else { continue }
       if let value = double(
         forKey: makeConfigKey(keyString), isSecret: false, fileID: #fileID, line: #line

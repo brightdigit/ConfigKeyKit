@@ -35,3 +35,13 @@ public enum ConfigKeySource: CaseIterable, Sendable {
   /// Environment variables (e.g., CLOUDKIT_CONTAINER_ID)
   case environment
 }
+
+extension ConfigKeySource: PrioritizedConfigKeySource {
+  /// Sources in precedence order, highest first: command line overrides
+  /// environment.
+  ///
+  /// This order is part of the public API. `ConfigValueReading` resolution
+  /// consults sources in this sequence, and it is pinned explicitly so it stays
+  /// independent of `case` declaration order.
+  public static let priority: [ConfigKeySource] = [.commandLine, .environment]
+}
