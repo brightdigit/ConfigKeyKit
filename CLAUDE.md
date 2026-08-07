@@ -14,7 +14,7 @@ ConfigKeyKit is a tiny, **dependency-free, Foundation-only** Swift 6.2 library (
 - `make lint` — runs `Scripts/lint.sh`: swift-format, SwiftLint, license-header check, and `periphery` dead-code scan
 - `make clean`
 
-Lint/format tooling is pinned via **mise** (`mise.toml`): swift-format 602.0.0, SwiftLint 0.62.2, periphery 3.7.4. Run `mise install` once so `Scripts/lint.sh` can find them outside CI. `Scripts/lint.sh` is env-driven: `LINT_MODE` (`STRICT` adds `--strict`/`--configuration`; `NONE`/`INSTALL` short-circuit), `FORMAT_ONLY=1` skips lint+build, and outside CI it auto-formats in place before linting.
+Lint/format tooling is pinned via **mise** (`mise.toml`): swift-format 602.0.0, SwiftLint 0.62.2, periphery 3.7.4. Run `mise install` once so `Scripts/lint.sh` can find them outside CI (not in Claude Code web sessions — there the SessionStart hook installs the same pinned versions directly, see "Linux builds"). `Scripts/lint.sh` is env-driven: `LINT_MODE` (`STRICT` adds `--strict`/`--configuration`; `NONE`/`INSTALL` short-circuit), `FORMAT_ONLY=1` skips lint+build, and outside CI it auto-formats in place before linting.
 
 ## Architecture
 
@@ -38,7 +38,7 @@ Both store the same three fields: `baseKey`, a `styles` map (`ConfigKeySource ->
 
 ## Linux builds
 
-This repo builds on Linux via SPM only — no Xcode, no Apple SDKs. The `platforms:` list in `Package.swift` applies to Apple platforms only and is ignored on Linux. **No targets are excluded on Linux**: both `ConfigKeyKit` and `ConfigKeyKitTests` build and test there (CI runs them in `swift:` containers). In Claude Code on the web, the SessionStart hook `.claude/hooks/session-start.sh` installs the toolchain via swiftly, pinned by `.swift-version` (requires `download.swift.org` on the environment's network allowlist), plus mise and the pinned lint tools so `make lint` works too. The first container build is slow — swift-format and periphery compile from source — but the result is cached for later sessions.
+This repo builds on Linux via SPM only — no Xcode, no Apple SDKs. The `platforms:` list in `Package.swift` applies to Apple platforms only and is ignored on Linux. **No targets are excluded on Linux**: both `ConfigKeyKit` and `ConfigKeyKitTests` build and test there (CI runs them in `swift:` containers). In Claude Code on the web, the SessionStart hook `.claude/hooks/session-start.sh` installs the toolchain via swiftly, pinned by `.swift-version` (requires `download.swift.org` on the environment's network allowlist), plus the lint tools at the versions pinned in `mise.toml` so `make lint` works too. It installs them directly (SwiftLint prebuilt binary; swift-format and periphery built from source) because `mise install` cannot work in web sessions — the session's GitHub gateway scopes `api.github.com` to session-attached repos, so mise's release lookups 403; mise stays the install path for CI and local dev. The hook runs **async**: the session starts immediately while installs continue in the background, so on a brand-new container `swift` and the lint tools can take several minutes to appear — progress is in `~/.claude-session-setup.log`, and `~/.claude-session-setup.done` marks completion; wait for it before treating a missing tool as an error. Cached containers have everything instantly.
 
 ## Note
 

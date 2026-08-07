@@ -3,24 +3,32 @@ set -euo pipefail
 
 # SessionStart hook: install a Swift toolchain and lint tooling for Claude
 # Code on the web (Linux). Only runs in remote sessions; local sessions are
-# untouched.
+# untouched. Runs async so the session starts immediately: progress lands in
+# ~/.claude-session-setup.log and ~/.claude-session-setup.done marks the end.
 if [ "${CLAUDE_CODE_REMOTE:-}" != "true" ]; then
   exit 0
 fi
 
+echo '{"async": true, "asyncTimeout": 2400000}'
+
+SETUP_LOG="$HOME/.claude-session-setup.log"
+SETUP_DONE="$HOME/.claude-session-setup.done"
+rm -f "$SETUP_DONE"
+exec >> "$SETUP_LOG" 2>&1
+
 SWIFTLY_ENV="$HOME/.local/share/swiftly/env.sh"
 PROJECT_DIR="${CLAUDE_PROJECT_DIR:-$PWD}"
+TOOLS_BIN="$HOME/.local/bin"
 
-persist_path() {
-  # Make swift and mise available to later Bash commands in the session.
-  if [ -n "${CLAUDE_ENV_FILE:-}" ]; then
-    {
-      echo "export SWIFTLY_HOME_DIR=\"$HOME/.local/share/swiftly\""
-      echo "export SWIFTLY_BIN_DIR=\"$HOME/.local/share/swiftly/bin\""
-      echo "export PATH=\"$HOME/.local/share/swiftly/bin:$HOME/.local/bin:\$PATH\""
-    } >> "$CLAUDE_ENV_FILE"
-  fi
-}
+# Make swift and the lint tools reachable for the session up front; entries
+# pointing at not-yet-populated directories are harmless.
+if [ -n "${CLAUDE_ENV_FILE:-}" ]; then
+  {
+    echo "export SWIFTLY_HOME_DIR=\"$HOME/.local/share/swiftly\""
+    echo "export SWIFTLY_BIN_DIR=\"$HOME/.local/share/swiftly/bin\""
+    echo "export PATH=\"$HOME/.local/share/swiftly/bin:$TOOLS_BIN:\$PATH\""
+  } >> "$CLAUDE_ENV_FILE"
+fi
 
 install_swift() {
   # System dependencies for Swift on Ubuntu 24.04 (per swift.org Linux
@@ -69,16 +77,63 @@ install_swift() {
   fi
 }
 
+# Read a tool's pinned version out of mise.toml so the pins have one source
+# of truth shared with CI and local dev.
+mise_pin() {
+  sed -n "s|.*$1\" *= *\"\([^\"]*\)\".*|\1|p" "$PROJECT_DIR/mise.toml"
+}
+
+# Build a SwiftPM executable from a public GitHub repo at a pinned tag and
+# drop the binary into TOOLS_BIN. Web sessions cannot use `mise install`
+# for this: the session's GitHub gateway scopes api.github.com to repos
+# attached to the session, and mise's version resolution 403s on the tool
+# repos. Anonymous public git clones and release-asset downloads do work,
+# so the hook installs the same pinned versions through those paths.
+build_spm_tool() {
+  local repo="$1" tag="$2" binary="$3" workdir
+  workdir="$(mktemp -d)"
+  git clone --depth 1 --branch "$tag" "https://github.com/$repo.git" "$workdir/src"
+  swift build --package-path "$workdir/src" -c release --product "$binary"
+  install -m 755 "$workdir/src/.build/release/$binary" "$TOOLS_BIN/$binary"
+  rm -rf "$workdir"
+}
+
 install_lint_tools() {
-  # Lint tooling (swift-format, SwiftLint, periphery) pinned via mise.toml.
-  # The spm-backend tools compile from source, so the first run is slow;
-  # container caching makes later sessions instant.
-  export PATH="$HOME/.local/bin:$PATH"
-  if ! command -v mise > /dev/null 2>&1; then
-    curl -fsSL https://mise.run | sh
+  local swiftlint_version swift_format_version periphery_version workdir
+  swiftlint_version="$(mise_pin 'aqua:realm/SwiftLint')"
+  swift_format_version="$(mise_pin 'spm:swiftlang/swift-format')"
+  periphery_version="$(mise_pin 'spm:peripheryapp/periphery')"
+  mkdir -p "$TOOLS_BIN"
+  export PATH="$TOOLS_BIN:$PATH"
+
+  if command -v swiftlint > /dev/null 2>&1 \
+    && [ "$(swiftlint --version)" = "$swiftlint_version" ]; then
+    echo "SwiftLint $swiftlint_version already installed."
+  else
+    workdir="$(mktemp -d)"
+    curl -fsSL -o "$workdir/swiftlint.zip" \
+      "https://github.com/realm/SwiftLint/releases/download/$swiftlint_version/swiftlint_linux_amd64.zip"
+    unzip -q -o "$workdir/swiftlint.zip" -d "$workdir"
+    install -m 755 "$workdir/swiftlint" "$TOOLS_BIN/swiftlint"
+    rm -rf "$workdir"
+    echo "SwiftLint $swiftlint_version installed."
   fi
-  mise trust --yes "$PROJECT_DIR/mise.toml"
-  mise --cd "$PROJECT_DIR" install --yes
+
+  if command -v swift-format > /dev/null 2>&1 \
+    && swift-format --version | grep -q "$swift_format_version"; then
+    echo "swift-format $swift_format_version already installed."
+  else
+    build_spm_tool "swiftlang/swift-format" "$swift_format_version" "swift-format"
+    echo "swift-format $swift_format_version installed."
+  fi
+
+  if command -v periphery > /dev/null 2>&1 \
+    && periphery version | grep -q "$periphery_version"; then
+    echo "periphery $periphery_version already installed."
+  else
+    build_spm_tool "peripheryapp/periphery" "$periphery_version" "periphery"
+    echo "periphery $periphery_version installed."
+  fi
 }
 
 # Pick up a swiftly install from a previous (cached) hook run.
@@ -100,5 +155,5 @@ if ! install_lint_tools; then
   echo "WARNING: swift build/test are unaffected. See errors above." >&2
 fi
 
-persist_path
 swift --version
+touch "$SETUP_DONE"
