@@ -83,26 +83,18 @@ mise_pin() {
   sed -n "s|.*$1\" *= *\"\([^\"]*\)\".*|\1|p" "$PROJECT_DIR/mise.toml"
 }
 
-# Build a SwiftPM executable from a public GitHub repo at a pinned tag and
-# drop the binary into TOOLS_BIN. Web sessions cannot use `mise install`
-# for this: the session's GitHub gateway scopes api.github.com to repos
-# attached to the session, and mise's version resolution 403s on the tool
-# repos. Anonymous public git clones and release-asset downloads do work,
-# so the hook installs the same pinned versions through those paths.
-build_spm_tool() {
-  local repo="$1" tag="$2" binary="$3" workdir
-  workdir="$(mktemp -d)"
-  git clone --depth 1 --branch "$tag" "https://github.com/$repo.git" "$workdir/src"
-  swift build --package-path "$workdir/src" -c release --product "$binary"
-  install -m 755 "$workdir/src/.build/release/$binary" "$TOOLS_BIN/$binary"
-  rm -rf "$workdir"
-}
-
+# Install SwiftLint from its prebuilt Linux release binary. Web sessions
+# cannot use `mise install` for this: the session's GitHub gateway scopes
+# api.github.com to repos attached to the session, and mise's version
+# resolution 403s on the tool repos. Anonymous release-asset downloads do
+# work, so the hook installs the same pinned version through that path.
+# The other lint tools are deliberately NOT installed here: swift-format
+# ships inside the Swift toolchain (swiftly proxies it), and periphery is
+# skipped in web sessions entirely (Scripts/lint.sh omits the scan when
+# CLAUDE_CODE_REMOTE is set), keeping session cold-start fast.
 install_lint_tools() {
-  local swiftlint_version swift_format_version periphery_version workdir
+  local swiftlint_version workdir
   swiftlint_version="$(mise_pin 'aqua:realm/SwiftLint')"
-  swift_format_version="$(mise_pin 'spm:swiftlang/swift-format')"
-  periphery_version="$(mise_pin 'spm:peripheryapp/periphery')"
   mkdir -p "$TOOLS_BIN"
   export PATH="$TOOLS_BIN:$PATH"
 
@@ -117,22 +109,6 @@ install_lint_tools() {
     install -m 755 "$workdir/swiftlint" "$TOOLS_BIN/swiftlint"
     rm -rf "$workdir"
     echo "SwiftLint $swiftlint_version installed."
-  fi
-
-  if command -v swift-format > /dev/null 2>&1 \
-    && swift-format --version | grep -q "$swift_format_version"; then
-    echo "swift-format $swift_format_version already installed."
-  else
-    build_spm_tool "swiftlang/swift-format" "$swift_format_version" "swift-format"
-    echo "swift-format $swift_format_version installed."
-  fi
-
-  if command -v periphery > /dev/null 2>&1 \
-    && periphery version | grep -q "$periphery_version"; then
-    echo "periphery $periphery_version already installed."
-  else
-    build_spm_tool "peripheryapp/periphery" "$periphery_version" "periphery"
-    echo "periphery $periphery_version installed."
   fi
 }
 

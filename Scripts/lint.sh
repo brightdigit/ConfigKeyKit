@@ -52,8 +52,13 @@ fi
 
 $PACKAGE_DIR/Scripts/header.sh -d $PACKAGE_DIR/Sources -c "Leo Dion" -o "BrightDigit" -p "ConfigKeyKit"
 
-if [ -z "$CI" ]; then
+# Periphery does not run in Claude Code web sessions: it would have to be
+# built from source there (no Linux binaries, and the session's GitHub
+# gateway rules out mise), which is not worth the cold-start cost.
+if [ -z "$CI" ] && [ "${CLAUDE_CODE_REMOTE:-}" != "true" ]; then
 	run_command periphery scan $PERIPHERY_OPTIONS --disable-update-check
+elif [ "${CLAUDE_CODE_REMOTE:-}" = "true" ]; then
+	echo "Skipping periphery scan (Claude Code web session)."
 fi
 
 popd
