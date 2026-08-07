@@ -38,7 +38,7 @@ Both store the same three fields: `baseKey`, a `styles` map (`ConfigKeySource ->
 
 ## Linux builds
 
-This repo builds on Linux via SPM only — no Xcode, no Apple SDKs. The `platforms:` list in `Package.swift` applies to Apple platforms only and is ignored on Linux. **No targets are excluded on Linux**: both `ConfigKeyKit` and `ConfigKeyKitTests` build and test there (CI runs them in `swift:` containers). In Claude Code on the web, the SessionStart hook `.claude/hooks/session-start.sh` installs the toolchain via swiftly, pinned by `.swift-version` (requires `download.swift.org` on the environment's network allowlist). Lint tooling (`make lint` via mise) is not installed by the hook.
+This repo builds on Linux via SPM only — no Xcode, no Apple SDKs. The `platforms:` list in `Package.swift` applies to Apple platforms only and is ignored on Linux. **No targets are excluded on Linux**: both `ConfigKeyKit` and `ConfigKeyKitTests` build and test there (CI runs them in `swift:` containers). In Claude Code on the web, the SessionStart hook `.claude/hooks/session-start.sh` installs the toolchain via swiftly, pinned by `.swift-version` (requires `download.swift.org` on the environment's network allowlist), plus mise and the pinned lint tools so `make lint` works too. The first container build is slow — swift-format and periphery compile from source — but the result is cached for later sessions.
 
 ## Note
 
