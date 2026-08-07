@@ -155,5 +155,13 @@ if ! install_lint_tools; then
   echo "WARNING: swift build/test are unaffected. See errors above." >&2
 fi
 
+# SwiftLint on Linux dlopens libsourcekitdInProc.so and finds it through
+# LINUX_SOURCEKIT_LIB_PATH; resolve it now that the toolchain exists.
+sourcekit_lib="$(find "$HOME/.local/share/swiftly/toolchains" \
+  -name libsourcekitdInProc.so -exec dirname {} \; 2> /dev/null | head -1)"
+if [ -n "$sourcekit_lib" ] && [ -n "${CLAUDE_ENV_FILE:-}" ]; then
+  echo "export LINUX_SOURCEKIT_LIB_PATH=\"$sourcekit_lib\"" >> "$CLAUDE_ENV_FILE"
+fi
+
 swift --version
 touch "$SETUP_DONE"
