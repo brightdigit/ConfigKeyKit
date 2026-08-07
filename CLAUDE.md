@@ -36,6 +36,10 @@ Both store the same three fields: `baseKey`, a `styles` map (`ConfigKeySource ->
 - Every source file carries the MIT license header (copyright "Leo Dion" / "BrightDigit"); `Scripts/header.sh` enforces it. New files need it.
 - `periphery.yml` sets `retain_public: true`, so public API is never flagged as dead code.
 
+## Linux builds
+
+This repo builds on Linux via SPM only — no Xcode, no Apple SDKs. The `platforms:` list in `Package.swift` applies to Apple platforms only and is ignored on Linux. **No targets are excluded on Linux**: both `ConfigKeyKit` and `ConfigKeyKitTests` build and test there (CI runs them in `swift:` containers). In Claude Code on the web, the SessionStart hook `.claude/hooks/session-start.sh` installs the toolchain via swiftly, pinned by `.swift-version` (requires `download.swift.org` on the environment's network allowlist). Lint tooling (`make lint` via mise) is not installed by the hook.
+
 ## Note
 
 `ConfigKeyKit.git/` in the working tree is a bare git repo (a mirror clone), not part of the package — leave it alone.
