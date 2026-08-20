@@ -37,23 +37,44 @@ else
 	SWIFTLINT_OPTIONS=""
 fi
 
+# SwiftLint is not installed in Claude Code web sessions: the SessionStart
+# hook installs only the Swift toolchain so cold start stays short. swift-format
+# ships inside that toolchain, so formatting, the header check and the build
+# still run there.
+if [ "${CLAUDE_CODE_REMOTE:-}" = "true" ]; then
+	RUN_SWIFTLINT=0
+else
+	RUN_SWIFTLINT=1
+fi
+
 pushd $PACKAGE_DIR
 
 if [ -z "$CI" ]; then
 	run_command swift-format format $SWIFTFORMAT_OPTIONS --recursive --parallel --in-place Sources Tests
-	run_command swiftlint --fix
+	if [ "$RUN_SWIFTLINT" -eq 1 ]; then
+		run_command swiftlint --fix
+	fi
 fi
 
 if [ -z "$FORMAT_ONLY" ]; then
 	run_command swift-format lint --configuration .swift-format --recursive --parallel $SWIFTFORMAT_OPTIONS Sources Tests
-	run_command swiftlint lint $SWIFTLINT_OPTIONS
+	if [ "$RUN_SWIFTLINT" -eq 1 ]; then
+		run_command swiftlint lint $SWIFTLINT_OPTIONS
+	else
+		echo "Skipping SwiftLint (Claude Code web session)."
+	fi
 	run_command swift build --build-tests
 fi
 
 $PACKAGE_DIR/Scripts/header.sh -d $PACKAGE_DIR/Sources -c "Leo Dion" -o "BrightDigit" -p "ConfigKeyKit"
 
-if [ -z "$CI" ]; then
+# Periphery does not run in Claude Code web sessions: it would have to be
+# built from source there (no Linux binaries, and the session's GitHub
+# gateway rules out mise), which is not worth the cold-start cost.
+if [ -z "$CI" ] && [ "${CLAUDE_CODE_REMOTE:-}" != "true" ]; then
 	run_command periphery scan $PERIPHERY_OPTIONS --disable-update-check
+elif [ "${CLAUDE_CODE_REMOTE:-}" = "true" ]; then
+	echo "Skipping periphery scan (Claude Code web session)."
 fi
 
 popd
