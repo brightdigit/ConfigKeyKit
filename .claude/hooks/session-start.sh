@@ -11,6 +11,19 @@ set -euo pipefail
 # SwiftLint and periphery are skipped in web sessions (Scripts/lint.sh omits
 # them when CLAUDE_CODE_REMOTE is set). Run `make lint` locally, where mise
 # provides the pinned versions, to get full coverage.
+#
+# This hook is the second tier of a two-tier setup. The first tier is
+# Scripts/cloud-setup.sh, pasted into the cloud environment's "Setup script"
+# field: it runs once, then the filesystem is snapshotted and later sessions
+# reuse it, so the ~1 GB toolchain download happens once per environment
+# instead of once per container. When that snapshot exists, the `command -v
+# swift` check below short-circuits and this hook finishes in about a second.
+#
+# The hook is still required on every session for two reasons: a snapshot
+# restores files but not environment variables, so PATH has to be re-exported
+# into CLAUDE_ENV_FILE each time; and an environment with no setup script
+# configured (a fresh clone, another contributor) still needs the toolchain
+# installed from here.
 if [ "${CLAUDE_CODE_REMOTE:-}" != "true" ]; then
   exit 0
 fi
