@@ -71,6 +71,17 @@ public protocol ConfigValueReading {
 
   /// Reads a double value for the native key, or `nil` if absent.
   func double(forKey key: Key, isSecret: Bool, fileID: String, line: UInt) -> Double?
+
+  /// Reads a boolean value for the native key, or `nil` when this source supplies
+  /// nothing usable — absent, empty, or not recognizable as a boolean.
+  ///
+  /// A default implementation parses the string value, so existing conformers keep
+  /// working unchanged. Readers with a native boolean accessor — `ConfigReader` among
+  /// them — witness this requirement directly, which matters: a command-line provider
+  /// reports a *valueless* flag (`--verbose`) only through its boolean accessor. Its
+  /// string accessor returns `nil`, so resolving booleans through strings cannot see
+  /// flag presence at all.
+  func bool(forKey key: Key, isSecret: Bool, fileID: String, line: UInt) -> Bool?
 }
 
 extension ConfigValueReading {
@@ -126,13 +137,11 @@ extension ConfigValueReading {
     resolvedDouble(key)
   }
 
-  // swiftlint:disable discouraged_optional_boolean
   /// Reads an optional boolean value, or `nil` if no source provides one
   /// (same truthiness rules as the required boolean overload).
   public func read(_ key: OptionalConfigKey<Bool>) -> Bool? {
     resolvedBool(key)
   }
-  // swiftlint:enable discouraged_optional_boolean
 
   /// Reads an optional value parsed from a source string with `transform`.
   ///
@@ -193,26 +202,9 @@ extension ConfigValueReading {
     resolved(key) { double(forKey: $0, isSecret: $1, fileID: #fileID, line: #line) }
   }
 
-  // swiftlint:disable:next discouraged_optional_boolean
   private func resolvedBool(_ key: any ConfigurationKey) -> Bool? {
-    for source in sourcePriority {
-      guard let keyString = key.key(for: source) else { continue }
-      guard
-        let value = string(
-          forKey: makeConfigKey(keyString), isSecret: key.isSecret, fileID: #fileID, line: #line
-        )
-      else { continue }
-      if source == .commandLine {
-        // Flag presence indicates true (e.g. `--verbose`).
-        return true
-      }
-      let normalized = value.lowercased().trimmingCharacters(in: .whitespaces)
-      if normalized.isEmpty {
-        // An empty value is treated as absent; consult the next source.
-        continue
-      }
-      return normalized == "true" || normalized == "1" || normalized == "yes"
-    }
-    return nil
+    resolved(key) { bool(forKey: $0, isSecret: $1, fileID: #fileID, line: #line) }
   }
 }
+
+// swiftlint:enable discouraged_optional_boolean

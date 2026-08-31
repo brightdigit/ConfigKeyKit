@@ -27,24 +27,16 @@
 //  OTHER DEALINGS IN THE SOFTWARE.
 //
 
-// swiftlint:disable discouraged_optional_boolean
 @testable import ConfigKeyKit
 
-/// Dict-backed ``ConfigValueReading`` keyed by the exact per-source key strings
-/// that `ConfigKey` / `OptionalConfigKey` produce, so the shared `read(_:)`
-/// resolution can be exercised without any configuration framework.
+/// A ``ConfigValueReading`` that supplies **only** strings, so it inherits the protocol's
+/// default boolean parsing.
 ///
-/// Models a reader with a **native** boolean accessor, as `ConfigReader` has. A
-/// command-line provider reports a valueless flag (`--verbose`) only through that
-/// accessor, so booleans are seeded in ``bools`` rather than as strings. Seeding a bare
-/// flag as an empty string — which this double used to do — is exactly what hid the
-/// resolution bug: the real provider returns `nil` from `string(forKey:)` there.
-/// ``StringOnlyConfigValueReader`` covers the string-parsing default instead.
-internal struct MockConfigValueReader: ConfigValueReading {
+/// Exists to pin that default: a reader with no native boolean accessor must still
+/// resolve `true`/`1`/`yes` and `false`/`0`/`no`, and must yield `nil` — not `false` —
+/// for anything it cannot recognize.
+internal struct StringOnlyConfigValueReader: ConfigValueReading {
   internal var strings: [String: String] = [:]
-  internal var ints: [String: Int] = [:]
-  internal var doubles: [String: Double] = [:]
-  internal var bools: [String: Bool] = [:]
   internal var sourcePriority: [ConfigKeySource] = ConfigKeySource.priority
 
   internal func makeConfigKey(_ string: String) -> String { string }
@@ -56,21 +48,14 @@ internal struct MockConfigValueReader: ConfigValueReading {
   }
 
   internal func int(
-    forKey key: String, isSecret _: Bool, fileID _: String, line _: UInt
+    forKey _: String, isSecret _: Bool, fileID _: String, line _: UInt
   ) -> Int? {
-    ints[key]
+    nil
   }
 
   internal func double(
-    forKey key: String, isSecret _: Bool, fileID _: String, line _: UInt
+    forKey _: String, isSecret _: Bool, fileID _: String, line _: UInt
   ) -> Double? {
-    doubles[key]
-  }
-
-  internal func bool(
-    forKey key: String, isSecret _: Bool, fileID _: String, line _: UInt
-  ) -> Bool? {
-    bools[key]
+    nil
   }
 }
-// swiftlint:enable discouraged_optional_boolean

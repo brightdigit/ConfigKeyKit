@@ -67,31 +67,6 @@ internal struct ConfigValueReadingTests {
     #expect(reader.read(key) == "from-env")
   }
 
-  @Test("Required bool: CLI flag presence is true")
-  internal func boolCLIPresence() throws {
-    let boolKey = ConfigKey("verbose", envPrefix: "BRIGHTDIGIT", default: false)
-    let cli = try #require(boolKey.key(for: .commandLine))
-    let reader = MockConfigValueReader(strings: [cli: ""])
-    #expect(reader.read(boolKey) == true)
-  }
-
-  @Test(
-    "Required bool: ENV truthy strings",
-    arguments: [("true", true), ("1", true), ("YES", true), ("false", false), ("0", false)]
-  )
-  internal func boolENVParsing(value: String, expected: Bool) throws {
-    let boolKey = ConfigKey("verbose", envPrefix: "BRIGHTDIGIT", default: false)
-    let env = try #require(boolKey.key(for: .environment))
-    let reader = MockConfigValueReader(strings: [env: value])
-    #expect(reader.read(boolKey) == expected)
-  }
-
-  @Test("Required bool: default when absent")
-  internal func boolDefault() {
-    let boolKey = ConfigKey("verbose", envPrefix: "BRIGHTDIGIT", default: true)
-    #expect(MockConfigValueReader().read(boolKey) == true)
-  }
-
   @Test("Optional int: parsed with precedence, nil when absent")
   internal func optionalInt() throws {
     let intKey = OptionalConfigKey<Int>("episode-number", envPrefix: "BRIGHTDIGIT")
@@ -134,40 +109,6 @@ internal struct ConfigValueReadingTests {
     #expect(MockConfigValueReader(ints: [cli: 1, env: 2]).read(intKey) == 1)
     #expect(MockConfigValueReader(ints: [env: 2]).read(intKey) == 2)
     #expect(MockConfigValueReader().read(intKey) == -1)
-  }
-
-  @Test("Optional bool: CLI presence true, ENV truthy, nil when absent")
-  internal func optionalBool() throws {
-    let boolKey = OptionalConfigKey<Bool>("verbose", envPrefix: "BRIGHTDIGIT")
-    let cli = try #require(boolKey.key(for: .commandLine))
-    let env = try #require(boolKey.key(for: .environment))
-    #expect(MockConfigValueReader(strings: [cli: ""]).read(boolKey) == true)
-    #expect(MockConfigValueReader(strings: [env: "yes"]).read(boolKey) == true)
-    #expect(MockConfigValueReader(strings: [env: "false"]).read(boolKey) == false)
-    #expect(MockConfigValueReader().read(boolKey) == nil)
-  }
-
-  @Test("Required bool honors sourcePriority: ENV value wins over CLI flag when reversed")
-  internal func boolReversedPriority() throws {
-    let boolKey = ConfigKey("verbose", envPrefix: "BRIGHTDIGIT", default: false)
-    let cli = try #require(boolKey.key(for: .commandLine))
-    let env = try #require(boolKey.key(for: .environment))
-    // CLI flag present (true) and ENV explicitly "false": precedence decides.
-    let forward = MockConfigValueReader(strings: [cli: "", env: "false"])
-    #expect(forward.read(boolKey) == true)
-    let reversed = MockConfigValueReader(
-      strings: [cli: "", env: "false"],
-      sourcePriority: [.environment, .commandLine]
-    )
-    #expect(reversed.read(boolKey) == false)
-  }
-
-  @Test("Required bool: empty ENV is treated as absent, default used")
-  internal func boolEmptyENVUsesDefault() throws {
-    let boolKey = ConfigKey("verbose", envPrefix: "BRIGHTDIGIT", default: true)
-    let env = try #require(boolKey.key(for: .environment))
-    #expect(MockConfigValueReader(strings: [env: ""]).read(boolKey) == true)
-    #expect(MockConfigValueReader(strings: [env: "   "]).read(boolKey) == true)
   }
 
   @Test("Optional date: falls through to next source when higher precedence fails to parse")
