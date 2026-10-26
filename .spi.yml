@@ -2,4 +2,4 @@ version: 1
 builder:
   configs:
     - documentation_targets: [ConfigKeyKit]
-      swift_version: 6.2
+      swift_version: 6.4

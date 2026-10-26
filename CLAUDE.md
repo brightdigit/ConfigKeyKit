@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-ConfigKeyKit is a tiny, **dependency-free, Foundation-only** Swift 6.2 library (single `ConfigKeyKit` library product). It defines configuration keys whose base name resolves to per-source key strings — e.g. `cloudkit.container_id` on the CLI vs. `MYAPP_CLOUDKIT_CONTAINER_ID` in the environment. It deliberately does **not** depend on `apple/swift-configuration`; it produces key strings you feed into whatever provider stack you use. Keep it dependency-free — adding a dependency is a design change, not a routine edit.
+ConfigKeyKit is a tiny, **dependency-free, Foundation-only** Swift 6.4 library (single `ConfigKeyKit` library product). It defines configuration keys whose base name resolves to per-source key strings — e.g. `cloudkit.container_id` on the CLI vs. `MYAPP_CLOUDKIT_CONTAINER_ID` in the environment. It deliberately does **not** depend on `apple/swift-configuration`; it produces key strings you feed into whatever provider stack you use. Keep it dependency-free — adding a dependency is a design change, not a routine edit.
 
 ## Commands
 
@@ -30,7 +30,7 @@ Both store the same three fields: `baseKey`, a `styles` map (`ConfigKeySource ->
 
 ## Conventions
 
-- **Swift 6.2** with these upcoming features enabled in `Package.swift` (apply them in new code): `ExistentialAny` (write `any NamingStyle`), `InternalImportsByDefault` (mark imports `public import` / `internal import` explicitly — e.g. Foundation is `internal import Foundation`), `MemberImportVisibility`, `FullTypedThrows`.
+- **Swift 6.4** with these upcoming features enabled in `Package.swift` (apply them in new code): `ExistentialAny` (write `any NamingStyle`), `InternalImportsByDefault` (mark imports `public import` / `internal import` explicitly — e.g. Foundation is `internal import Foundation`), `MemberImportVisibility`, `FullTypedThrows`.
 - Everything is `Sendable`; preserve that.
 - SwiftLint runs with many opt-in rules including `explicit_acl` / `explicit_top_level_acl` (declare access control explicitly on every declaration) and `force_unwrapping` (no `!`). `file_name` is enforced — the primary type's name must match the filename; extensions use the `Type+Feature.swift` pattern.
 - Every source file carries the MIT license header (copyright "Leo Dion" / "BrightDigit"); `Scripts/header.sh` enforces it. New files need it.

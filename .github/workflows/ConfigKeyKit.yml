@@ -58,11 +58,11 @@ jobs:
         run: |
           if [[ "${{ steps.check.outputs.full }}" == "true" ]]; then
             echo 'ubuntu-os=["noble","jammy"]' >> "$GITHUB_OUTPUT"
-            echo 'ubuntu-swift=[{"version":"6.2"},{"version":"6.3"},{"version":"6.4","image":"swiftlang/swift:nightly-6.4.x"}]' >> "$GITHUB_OUTPUT"
+            echo 'ubuntu-swift=[{"version":"6.4"}]' >> "$GITHUB_OUTPUT"
             echo 'ubuntu-type=["","wasm","wasm-embedded"]' >> "$GITHUB_OUTPUT"
           else
             echo 'ubuntu-os=["noble"]' >> "$GITHUB_OUTPUT"
-            echo 'ubuntu-swift=[{"version":"6.3"}]' >> "$GITHUB_OUTPUT"
+            echo 'ubuntu-swift=[{"version":"6.4"}]' >> "$GITHUB_OUTPUT"
             echo 'ubuntu-type=[""]' >> "$GITHUB_OUTPUT"
           fi
 
@@ -78,13 +78,6 @@ jobs:
         os: ${{ fromJSON(needs.configure.outputs.ubuntu-os) }}
         swift: ${{ fromJSON(needs.configure.outputs.ubuntu-swift) }}
         type: ${{ fromJSON(needs.configure.outputs.ubuntu-type) }}
-        # Swift nightly does not publish matching Wasm SDK snapshots, so build
-        # the 6.4 nightly toolchain for the native target only.
-        exclude:
-          - swift: { version: "6.4", image: "swiftlang/swift:nightly-6.4.x" }
-            type: wasm
-          - swift: { version: "6.4", image: "swiftlang/swift:nightly-6.4.x" }
-            type: wasm-embedded
     steps:
       - uses: actions/checkout@v6
       - uses: brightdigit/swift-build@v1
@@ -137,10 +130,8 @@ jobs:
       matrix:
         runs-on: [windows-2022, windows-2025]
         swift:
-          - version: swift-6.2-release
-            build: 6.2-RELEASE
-          - version: swift-6.3-release
-            build: 6.3-RELEASE
+          - version: swift-6.4-release
+            build: 6.4-RELEASE
     steps:
       - uses: actions/checkout@v6
       - uses: brightdigit/swift-build@v1
@@ -168,8 +159,7 @@ jobs:
       fail-fast: false
       matrix:
         swift:
-          - version: "6.2"
-          - version: "6.3"
+          - version: "6.4"
         android-api-level: [33, 34]
     steps:
       - uses: actions/checkout@v6
@@ -192,17 +182,18 @@ jobs:
 
   build-macos:
     name: Build on macOS
-    runs-on: macos-26
+    # Xcode 27 ships Swift 6.4, the only Swift this package supports.
+    runs-on: xcode-27
     if: ${{ !contains(github.event.head_commit.message, 'ci skip') }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          - xcode: "/Applications/Xcode_26.4.app"
+          - xcode: "/Applications/Xcode_27.1.app"
           - type: ios
-            xcode: "/Applications/Xcode_26.4.app"
-            deviceName: "iPhone 17 Pro"
-            osVersion: "26.4.1"
+            xcode: "/Applications/Xcode_27.1.app"
+            deviceName: "iPhone 17"
+            osVersion: "27.0"
             download-platform: true
     steps:
       - uses: actions/checkout@v6
@@ -239,25 +230,25 @@ jobs:
       matrix:
         include:
           - type: macos
-            runs-on: macos-26
-            xcode: "/Applications/Xcode_26.4.app"
+            runs-on: xcode-27
+            xcode: "/Applications/Xcode_27.1.app"
           - type: watchos
-            runs-on: macos-26
-            xcode: "/Applications/Xcode_26.4.app"
-            deviceName: "Apple Watch Ultra 3 (49mm)"
-            osVersion: "26.4"
+            runs-on: xcode-27
+            xcode: "/Applications/Xcode_27.1.app"
+            deviceName: "Apple Watch Ultra 4 (49mm)"
+            osVersion: "27.0"
             download-platform: true
           - type: tvos
-            runs-on: macos-26
-            xcode: "/Applications/Xcode_26.4.app"
-            deviceName: "Apple TV"
-            osVersion: "26.4"
+            runs-on: xcode-27
+            xcode: "/Applications/Xcode_27.1.app"
+            deviceName: "Apple TV 4K (3rd generation)"
+            osVersion: "27.0"
             download-platform: true
           - type: visionos
-            runs-on: macos-26
-            xcode: "/Applications/Xcode_26.4.app"
+            runs-on: xcode-27
+            xcode: "/Applications/Xcode_27.1.app"
             deviceName: "Apple Vision Pro"
-            osVersion: "26.4.1"
+            osVersion: "27.0"
             download-platform: true
     steps:
       - uses: actions/checkout@v6
